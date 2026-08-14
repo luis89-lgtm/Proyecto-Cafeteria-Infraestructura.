@@ -1,0 +1,35 @@
+.dashboard-container {
+  font-family: sans-serif;
+  padding: 20px;
+}
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+.badge-role {
+  background-color: #007bff;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+}
+.alerts-section, .inventory-grid {
+  margin-bottom: 30px;
+}
+.alert-card.critical {
+  background-color: #ffdddd;
+  color: #d8000c;
+  padding: 15px;
+  border-left: 5px solid #d8000c;
+  margin-top: 10px;
+}
+.product-card {
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 8px;
+  width: 200px;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
