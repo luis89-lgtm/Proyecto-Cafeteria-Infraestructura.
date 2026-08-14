@@ -1,12 +1,327 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Café Tech</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaféTech - Sistema Integral Web</title>
+    
+    <!-- React y Babel via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #2d2a26; /* Gris oscuro / asfalto */
+            --surface-color: rgba(62, 54, 50, 0.7); /* Café cenizo translúcido */
+            --primary: #8d6e63; /* Café con leche */
+            --text-main: #f5f5f5; /* Gris muy claro */
+            --text-muted: #bcaaa4; /* Café claro apagado */
+            --accent: #d7ccc8; /* Crema/café muy claro */
+            --danger: #e57373;
+            --success: #81c784;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(141, 110, 99, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(215, 204, 200, 0.1) 0%, transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .glass {
+            background: var(--surface-color);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+        }
+
+        /* Sidebar */
+        .sidebar { width: 280px; padding: 2rem; display: flex; flex-direction: column; gap: 2rem; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+        .logo { font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; }
+        .logo span { color: var(--primary); }
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .nav-item { padding: 1rem; border-radius: 12px; cursor: pointer; transition: all 0.3s; color: var(--text-muted); font-weight: 500; }
+        .nav-item:hover, .nav-item.active { background: rgba(249, 115, 22, 0.1); color: var(--primary); transform: translateX(5px); }
+
+        /* Main Content */
+        .main-content { flex: 1; padding: 2rem 3rem; display: flex; flex-direction: column; gap: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .user-profile { display: flex; align-items: center; gap: 1rem; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        /* Dashboard & POS Grid */
+        .dashboard-grid, .pos-grid { display: grid; gap: 1.5rem; }
+        .dashboard-grid { grid-template-columns: repeat(3, 1fr); }
+        .pos-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+        
+        .metric-card, .product-card { padding: 1.5rem; transition: transform 0.3s ease; text-align: center;}
+        .metric-card:hover, .product-card:hover { transform: translateY(-5px); }
+        .product-card:hover { border-color: var(--primary); box-shadow: 0 10px 25px rgba(249, 115, 22, 0.15); cursor: pointer; }
+        
+        .metric-value { font-size: 2.5rem; font-weight: 700; color: var(--text-main); }
+        .metric-title { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; }
+
+        .product-img { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 1rem; background-size: cover; background-position: center; }
+
+        .table-container { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        th { color: var(--text-muted); font-weight: 500; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; }
+        .status-low { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .status-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+
+        .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: var(--primary); color: white;}
+        .btn:hover { background: var(--primary-hover); }
+
+        .toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 1000; }
+        .toast { background: white; color: #333; padding: 16px 24px; border-radius: 8px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div id="root" style="width: 100%; display: flex;"></div>
+
+    <script type="text/babel">
+        function App() {
+            const [activeTab, setActiveTab] = React.useState('dashboard');
+            const [inventario, setInventario] = React.useState([]);
+            const [notificaciones, setNotificaciones] = React.useState([]);
+            const [token, setToken] = React.useState("");
+            const [usdRate, setUsdRate] = React.useState(18.0);
+            const [tareas, setTareas] = React.useState([]);
+            const [nuevaTarea, setNuevaTarea] = React.useState('');
+            const ws = React.useRef(null);
+
+            React.useEffect(() => {
+                // 1. Obtener Token (Mecanismo de Seguridad JWT)
+                fetch("/api/auth", { method: "POST" })
+                    .then(res => res.json())
+                    .then(data => setToken(data.access_token));
+
+                fetch("/api/inventory")
+                    .then(res => res.json())
+                    .then(data => setInventario(data));
+
+                fetch("/api/exchange-rate")
+                    .then(res => res.json())
+                    .then(data => setUsdRate(data.to_mxn));
+
+                fetch("/api/tareas")
+                    .then(res => res.json())
+                    .then(data => setTareas(data));
+
+                // 4. WebSocket para tiempo real
+                ws.current = new WebSocket(`ws://${window.location.host}/ws/pos`);
+                ws.current.onmessage = (event) => {
+                    mostrarBurbuja(event.data, "info");
+                    fetch("/api/inventory").then(res => res.json()).then(data => setInventario(data));
+                };
+
+                return () => ws.current.close();
+            }, []);
+
+            const mostrarBurbuja = (mensaje, tipo) => {
+                const id = Date.now();
+                setNotificaciones(prev => [...prev, { id, mensaje, tipo }]);
+                setTimeout(() => setNotificaciones(prev => prev.filter(n => n.id !== id)), 3000);
+            };
+
+            const descontarStock = (item_id) => {
+                fetch(`/api/inventory/${item_id}/deduct`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error("Sin stock o Error Auth");
+                    return res.json();
+                })
+                .then(data => {
+                    mostrarBurbuja(`Salida registrada. Stock actual: ${data.stock}`, "exito");
+                    setInventario(prev => prev.map(item => item.id === item_id ? data : item));
+                })
+                .catch(err => mostrarBurbuja(err.message, "error"));
+            };
+
+            const registrarVenta = (producto) => {
+                if (ws.current) {
+                    ws.current.send(`Nueva venta: ${producto}`);
+                }
+                descontarStock(1);
+            };
+
+            const agregarTarea = () => {
+                if(!nuevaTarea) return;
+                fetch("/api/tareas", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({tarea: nuevaTarea})
+                }).then(res => res.json()).then(data => {
+                    setTareas([...tareas, data]);
+                    setNuevaTarea('');
+                    mostrarBurbuja("Tarea agregada", "exito");
+                });
+            };
+
+            const toggleTarea = (id) => {
+                fetch(`/api/tareas/${id}/toggle`, {method: "PUT"})
+                .then(res => res.json())
+                .then(data => {
+                    setTareas(tareas.map(t => t.id === id ? data : t));
+                });
+            };
+
+            const eliminarTarea = (id) => {
+                fetch(`/api/tareas/${id}`, {method: "DELETE"})
+                .then(() => {
+                    setTareas(tareas.filter(t => t.id !== id));
+                    mostrarBurbuja("Tarea eliminada", "info");
+                });
+            };
+
+            return (
+                <React.Fragment>
+                    <aside className="sidebar glass">
+                        <div className="logo">Café<span>Tech</span></div>
+                        <ul className="nav-menu">
+                            <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard Central</li>
+                            <li className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`} onClick={() => setActiveTab('pos')}>Punto de Venta (POS)</li>
+                            <li className={`nav-item ${activeTab === 'tareas' ? 'active' : ''}`} onClick={() => setActiveTab('tareas')}>Tareas del Barista</li>
+                        </ul>
+                    </aside>
+
+                    <main className="main-content">
+                        <header className="header">
+                            <div>
+                                <h1 style={{fontSize: "1.8rem", fontWeight: 600}}>Bienvenido, <span style={{color: "var(--primary)"}}>Gerente</span></h1>
+                                <p style={{color: "var(--text-muted)"}}>Sistema Integrado con FastAPI, React y WebSockets</p>
+                            </div>
+                            <div className="user-profile">
+                                <div style={{textAlign: "right"}}>
+                                    <div style={{fontWeight: 600}}>Luis Admin</div>
+                                </div>
+                                <div className="avatar">LA</div>
+                            </div>
+                        </header>
+
+                        {activeTab === 'dashboard' && (
+                            <section>
+                                <div className="dashboard-grid">
+                                    <div className="metric-card glass">
+                                        <span className="metric-title">API Terceros (Tasa USD)</span>
+                                        <span className="metric-value">${usdRate.toFixed(2)} MXN</span>
+                                    </div>
+                                    <div className="metric-card glass">
+                                        <span className="metric-title">WebSockets Status</span>
+                                        <span className="metric-value" style={{color: "var(--success)"}}>Conectado</span>
+                                    </div>
+                                </div>
+
+                                <div className="glass" style={{marginTop: "2rem", padding: "1.5rem"}}>
+                                    <h2>Inventario Central (REST API)</h2>
+                                    <table className="table-container">
+                                        <thead>
+                                            <tr>
+                                                <th>Insumo</th>
+                                                <th>Stock</th>
+                                                <th>Estado</th>
+                                                <th>Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {inventario.map(item => {
+                                                const esCritico = item.stock <= item.umbral;
+                                                return (
+                                                    <tr key={item.id}>
+                                                        <td>
+                                                            <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                                                                <img src={item.imagen} style={{width: 40, height: 40, borderRadius: "50%"}} />
+                                                                {item.nombre} ({item.unidad})
+                                                            </div>
+                                                        </td>
+                                                        <td style={{fontSize: "1.2rem", fontWeight: "bold"}}>{item.stock}</td>
+                                                        <td>
+                                                            <span className={`status-badge ${esCritico ? 'status-low' : 'status-ok'}`}>
+                                                                {esCritico ? 'CRÍTICO' : 'ÓPTIMO'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <button className="btn" onClick={() => descontarStock(item.id)}>Consumir</button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        )}
+
+                        {activeTab === 'pos' && (
+                            <section>
+                                <h2 style={{marginBottom: "1.5rem"}}>Terminal Punto de Venta</h2>
+                                <div className="pos-grid">
+                                    <div className="product-card glass" onClick={() => registrarVenta("Latte Art")}>
+                                        <div className="product-img" style={{backgroundImage: "url('https://images.unsplash.com/photo-1559525839-b184a4d698c7?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80')"}}></div>
+                                        <h3>Latte Art</h3>
+                                        <p style={{color: "var(--primary)", fontWeight: "bold"}}>$65.00 MXN</p>
+                                        <p style={{fontSize: "0.8rem", color: "var(--text-muted)"}}>≈ ${(65/usdRate).toFixed(2)} USD</p>
+                                    </div>
+                                    <div className="product-card glass" onClick={() => registrarVenta("Espresso")}>
+                                        <div className="product-img" style={{backgroundImage: "url('https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80')"}}></div>
+                                        <h3>Espresso Doble</h3>
+                                        <p style={{color: "var(--primary)", fontWeight: "bold"}}>$45.00 MXN</p>
+                                        <p style={{fontSize: "0.8rem", color: "var(--text-muted)"}}>≈ ${(45/usdRate).toFixed(2)} USD</p>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
+                        {activeTab === 'tareas' && (
+                            <section>
+                                <h2 style={{marginBottom: "1.5rem"}}>Lista de Tareas Diarias</h2>
+                                <div className="glass" style={{padding: "1.5rem"}}>
+                                    <div style={{display: "flex", gap: "10px", marginBottom: "1rem"}}>
+                                        <input type="text" value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} placeholder="Nueva tarea..." style={{flex: 1, padding: "8px", borderRadius: "6px", border: "none", outline: "none"}} />
+                                        <button className="btn" onClick={agregarTarea}>Agregar</button>
+                                    </div>
+                                    <ul style={{listStyle: "none"}}>
+                                        {tareas.map(t => (
+                                            <li key={t.id} style={{display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid rgba(255,255,255,0.1)"}}>
+                                                <div style={{display: "flex", alignItems: "center", gap: "10px"}}>
+                                                    <input type="checkbox" checked={t.completada} onChange={() => toggleTarea(t.id)} />
+                                                    <span style={{textDecoration: t.completada ? "line-through" : "none", color: t.completada ? "var(--text-muted)" : "var(--text-main)"}}>{t.tarea}</span>
+                                                </div>
+                                                <button className="btn" style={{background: "var(--danger)", padding: "4px 8px"}} onClick={() => eliminarTarea(t.id)}>Borrar</button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </section>
+                        )}
+                    </main>
+
+                    <div className="toast-container">
+                        {notificaciones.map(n => (
+                            <div key={n.id} className="toast" style={{borderLeft: `5px solid ${n.tipo === 'error' ? 'red' : 'green'}`}}>
+                                {n.mensaje}
+                            </div>
+                        ))}
+                    </div>
+                </React.Fragment>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
